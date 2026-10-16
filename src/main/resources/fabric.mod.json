@@ -1,0 +1,21 @@
+{
+	"schemaVersion": 1,
+	"id": "${id}",
+	"version": "${version}",
+	"name": "${name}",
+	"description": "Adds 30 structures to world generation: temples, shrines, villas, towers, a harbour and more. Based on Shrines Structures by Silverminer007.",
+	"authors": ["traelmyx"],
+	"contributors": ["Silverminer007 (original mod)"],
+	"contact": {
+		"sources": "https://github.com/traelmyx/shrines-reborn",
+		"issues": "https://github.com/traelmyx/shrines-reborn/issues"
+	},
+	"license": "MPL-2.0",
+	"icon": "assets/shrines/icon.png",
+	"environment": "*",
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "${mc_dep}",
+		"java": ">=${java}"
+	}
+}

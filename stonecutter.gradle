@@ -1,0 +1,26 @@
+plugins {
+	id 'dev.kikugie.stonecutter'
+	id 'net.fabricmc.fabric-loom' apply false
+	id 'net.fabricmc.fabric-loom-remap' apply false
+	id 'net.neoforged.moddev' apply false
+}
+
+stonecutter.active '1.21.1-neoforge'
+
+stonecutter.parameters {
+	def loader = node.metadata.project.substring(node.metadata.project.lastIndexOf('-') + 1)
+	constants.match(loader, 'fabric', 'neoforge')
+}
+
+tasks.register('buildAll') {
+	group = 'verification'
+	dependsOn stonecutter.tasks.named('build', null)
+}
+tasks.register('gameTestAll') {
+	group = 'verification'
+	dependsOn stonecutter.tasks.named('runGameTest', null)
+}
+tasks.register('clientGameTestAll') {
+	group = 'verification'
+	dependsOn stonecutter.tasks.named('runProductionClientGameTest', null)
+}

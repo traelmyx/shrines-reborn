@@ -1,0 +1,118 @@
+apply plugin: 'net.neoforged.moddev'
+apply plugin: 'maven-publish'
+
+def mc = stonecutter.current.version
+def javaVersion = (project.property('mc.java') as String).toInteger()
+def modId = project.property('mod.id') as String
+
+version = "${project.property('mod.version')}+${mc}-neoforge"
+group = project.property('mod.group')
+base.archivesName = modId
+
+sourceSets {
+	gametest {
+		compileClasspath += sourceSets.main.output
+		runtimeClasspath += sourceSets.main.output
+	}
+}
+configurations {
+	gametestImplementation.extendsFrom implementation
+	gametestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+neoForge {
+	enable {
+		version = project.property('deps.neoforge')
+		disableRecompilation = true
+	}
+	addModdingDependenciesTo sourceSets.gametest
+
+	mods {
+		"${modId}" { sourceSet sourceSets.main }
+		"${modId}_gametest" { sourceSet sourceSets.gametest }
+	}
+
+	runs {
+		configureEach {
+			jvmArgument '-Xmx1G'
+			sourceSet = sourceSets.gametest
+		}
+		gameTest {
+			type = 'gameTestServer'
+			gameDirectory = project.file('build/run/gameTest')
+			systemProperty 'neoforge.enabledGameTestNamespaces', "${modId}_gametest"
+		}
+		clientSmoke {
+			client()
+			gameDirectory = project.file('build/run/clientSmoke')
+			systemProperty 'smoketest', 'true'
+			jvmArguments.set(['-Xmx2G'])
+		}
+	}
+}
+
+tasks.named('check') { dependsOn 'runGameTest' }
+
+tasks.named('runGameTest') {
+	def log = project.file('build/run/gameTest/logs/latest.log')
+	doFirst { project.delete(log) }
+	doLast {
+		if (!log.exists() || !(log.text =~ /All \d+ required tests passed/)) {
+			throw new GradleException("GameTests did not report success, see ${log}")
+		}
+	}
+}
+
+java {
+	withSourcesJar()
+	toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = javaVersion
+	options.encoding = 'UTF-8'
+}
+
+def nfMajor = (project.property('deps.neoforge') as String).tokenize('.')[0]
+processResources {
+	exclude 'fabric.mod.json'
+	def props = [
+		id            : modId,
+		name          : project.property('mod.name'),
+		version       : version,
+		mc_dep        : project.property('mc.dep'),
+		neoforge_major: nfMajor,
+		logo_key      : stonecutter.eval(mc, '>=26') ? 'iconFile' : 'logoFile',
+	]
+	inputs.properties props
+	filesMatching('META-INF/neoforge.mods.toml') { expand props }
+}
+
+processGametestResources {
+	exclude 'fabric.mod.json'
+	def props = [id: modId, version: version]
+	inputs.properties props
+	filesMatching('META-INF/neoforge.mods.toml') { expand props }
+}
+
+tasks.register('runProductionClientGameTest') {
+	group = 'verification'
+	dependsOn 'runClientSmoke'
+	def marker = project.file('build/run/clientSmoke/smoke-ok')
+	doLast {
+		if (!marker.exists()) throw new GradleException("client smoke test did not report success (no ${marker})")
+	}
+}
+tasks.named('runClientSmoke') {
+	doFirst { project.delete(project.file('build/run/clientSmoke/smoke-ok')) }
+}
+
+jar {
+	from(rootProject.file('LICENSE')) { rename { "${it}_${modId}" } }
+}
+
+publishing {
+	publications {
+		create('mavenJava', MavenPublication) { from components.java }
+	}
+}

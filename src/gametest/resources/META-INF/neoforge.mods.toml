@@ -1,0 +1,15 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MPL-2.0"
+
+[[mods]]
+modId = "${id}_gametest"
+version = "${version}"
+displayName = "Shrines Reborn GameTests"
+
+[[dependencies.${id}_gametest]]
+modId = "${id}"
+type = "required"
+versionRange = "*"
+ordering = "AFTER"
+side = "BOTH"

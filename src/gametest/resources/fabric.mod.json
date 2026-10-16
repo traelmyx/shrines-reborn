@@ -1,0 +1,14 @@
+{
+	"schemaVersion": 1,
+	"id": "${id}_gametest",
+	"version": "${version}",
+	"name": "Shrines Reborn GameTests",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-gametest": ["com.silverminer.shrines.test.fabric.FabricGameTests"],
+		"client": ["com.silverminer.shrines.test.fabric.FabricClientSmoke"]
+	},
+	"depends": {
+		"${id}": "*"
+	}
+}

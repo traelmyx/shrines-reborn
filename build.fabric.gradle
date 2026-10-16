@@ -1,0 +1,161 @@
+def mc = stonecutter.current.version
+def obf = stonecutter.eval(mc, '<26')
+apply plugin: obf ? 'net.fabricmc.fabric-loom-remap' : 'net.fabricmc.fabric-loom'
+apply plugin: 'maven-publish'
+
+def javaVersion = (project.property('mc.java') as String).toInteger()
+def hasClientGameTestApi = stonecutter.eval(mc, '>=1.21.4')
+
+version = "${project.property('mod.version')}+${mc}-fabric"
+group = project.property('mod.group')
+base.archivesName = project.property('mod.id')
+
+repositories {
+}
+
+loom {
+	runs.configureEach { vmArgs '-Xmx1G' }
+	mods {
+		"${project.property('mod.id')}" {
+			sourceSet sourceSets.main
+		}
+	}
+}
+
+tasks.matching { it.name == 'runGameTest' }.configureEach {
+	def log = project.file('build/run/gameTest/logs/latest.log')
+	doFirst { project.delete(log) }
+	doLast {
+		if (!log.exists() || !(log.text =~ /All \d+ required tests passed/)) {
+			throw new GradleException("GameTests did not report success, see ${log}")
+		}
+	}
+}
+
+afterEvaluate {
+	loom.runs.named('gameTest') {
+		property 'fabric-api.gametest.report-file', project.file('build/gametest-report.xml').absolutePath
+	}
+}
+
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "${project.property('mod.id')}_gametest"
+		enableGameTests = true
+		enableClientGameTests = hasClientGameTestApi
+		eula = true
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${mc}"
+	if (obf) {
+		mappings loom.officialMojangMappings()
+		modImplementation "net.fabricmc:fabric-loader:${project.property('loader_version')}"
+		modImplementation "net.fabricmc.fabric-api:fabric-api:${project.property('deps.fabric_api')}"
+	} else {
+		implementation "net.fabricmc:fabric-loader:${project.property('loader_version')}"
+		implementation "net.fabricmc.fabric-api:fabric-api:${project.property('deps.fabric_api')}"
+	}
+	productionRuntimeMods "net.fabricmc.fabric-api:fabric-api:${project.property('deps.fabric_api')}"
+}
+
+java {
+	withSourcesJar()
+	toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+	sourceCompatibility = JavaVersion.toVersion(javaVersion)
+	targetCompatibility = JavaVersion.toVersion(javaVersion)
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = javaVersion
+	options.encoding = 'UTF-8'
+}
+
+processResources {
+	exclude 'META-INF/neoforge.mods.toml'
+	def props = [
+		id     : project.property('mod.id'),
+		name   : project.property('mod.name'),
+		version: version,
+		mc_dep : project.property('mc.dep'),
+		java   : javaVersion,
+	]
+	inputs.properties props
+	filesMatching('fabric.mod.json') { expand props }
+}
+
+processGametestResources {
+	exclude 'META-INF/neoforge.mods.toml'
+	def props = [id: project.property('mod.id'), version: version]
+	inputs.properties props
+	filesMatching('fabric.mod.json') { expand props }
+}
+
+jar {
+	def projectName = project.property('mod.id')
+	from(rootProject.file('LICENSE')) { rename { "${it}_${projectName}" } }
+}
+
+def gametestJar = tasks.register('gametestJar', Jar) {
+	from sourceSets.gametest.output
+	archiveClassifier = obf ? 'gametest-dev' : 'gametest'
+}
+def gametestModJar = gametestJar
+if (obf) {
+	gametestModJar = tasks.register('remapGametestJar', net.fabricmc.loom.task.RemapJarTask) {
+		inputFile = gametestJar.flatMap { it.archiveFile }
+		archiveClassifier = 'gametest'
+		addNestedDependencies = false
+	}
+}
+
+tasks.register('runProductionGameTest', net.fabricmc.loom.task.prod.ServerProductionRunTask) {
+	group = 'verification'
+	installerVersion = '1.1.2'
+	mods.from(gametestModJar)
+	jvmArgs.add('-Dfabric-api.gametest')
+	jvmArgs.add('-Xmx1G')
+	def dir = layout.buildDirectory.dir('run/prodGameTest')
+	runDir = dir
+	javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(javaVersion) }
+	def log = dir.map { it.file('logs/latest.log') }
+	doFirst {
+		def d = dir.get().asFile
+		d.mkdirs()
+		new File(d, 'eula.txt').text = 'eula=true\n'
+		project.delete(log)
+	}
+	doLast {
+		def f = log.get().asFile
+		if (!f.exists() || !(f.text =~ /All \d+ required tests passed/)) {
+			throw new GradleException("Production GameTests did not report success, see ${f}")
+		}
+	}
+}
+
+tasks.register('runProductionClientGameTest', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+	group = 'verification'
+	mods.from(gametestModJar)
+	if (hasClientGameTestApi) {
+		jvmArgs.add('-Dfabric.client.gametest')
+		jvmArgs.add('-Dfabric.client.gametest.disableNetworkSynchronizer=true')
+	} else {
+		jvmArgs.add('-Dsmoketest=true')
+		def marker = layout.buildDirectory.file('run/prodClientGameTest/smoke-ok')
+		doFirst { project.delete(marker) }
+		doLast {
+			if (!marker.get().asFile.exists()) throw new GradleException('client smoke test did not report success')
+		}
+	}
+	jvmArgs.add('-Xmx2G')
+	runDir = layout.buildDirectory.dir('run/prodClientGameTest')
+	javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(javaVersion) }
+}
+
+publishing {
+	publications {
+		create('mavenJava', MavenPublication) { from components.java }
+	}
+}
