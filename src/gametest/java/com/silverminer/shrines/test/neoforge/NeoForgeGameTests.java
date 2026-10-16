@@ -24,7 +24,7 @@ public class NeoForgeGameTests {
 		}
 	}
 
-	@GameTest(template = "empty", timeoutTicks = 2400)
+	@GameTest(template = "empty", timeoutTicks = 1600)
 	public static void allStructuresPlace(GameTestHelper helper) {
 		ShrinesTests.allStructuresPlace(helper);
 	}

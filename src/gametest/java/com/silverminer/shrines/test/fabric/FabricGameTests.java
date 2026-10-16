@@ -9,7 +9,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 public class FabricGameTests implements FabricGameTest {
 	private static final String EMPTY = "shrines_gametest:empty";
 
-	@GameTest(template = EMPTY, timeoutTicks = 2400)
+	@GameTest(template = EMPTY, timeoutTicks = 1600)
 	public void allStructuresPlace(GameTestHelper helper) {
 		ShrinesTests.allStructuresPlace(helper);
 	}

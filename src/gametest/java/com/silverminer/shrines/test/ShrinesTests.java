@@ -25,7 +25,9 @@ public final class ShrinesTests {
 	private ShrinesTests() {
 	}
 
-	/** Every structure in the mod generates with /place structure, far away from the test area. */
+	public static final int PLACE_SPACING_TICKS = 40;
+
+	/** Every structure in the mod generates with /place structure, one every couple of seconds so unloaded chunks get freed. */
 	public static void allStructuresPlace(GameTestHelper helper) {
 		MinecraftServer server = helper.getLevel().getServer();
 		ServerLevel level = helper.getLevel();
@@ -34,21 +36,36 @@ public final class ShrinesTests {
 		helper.assertTrue(ids.size() >= 30, "expected 30+ shrines structures, found " + ids.size());
 		CommandSourceStack source = server.createCommandSourceStack().withLevel(level).withSuppressedOutput().withPermission(4);
 		List<String> failed = new ArrayList<>();
-		int i = 0;
-		for (ResourceLocation id : ids) {
-			int x = 20000 + (i++) * 400;
+		for (int i = 0; i < ids.size(); i++) {
+			ResourceLocation id = ids.get(i);
+			int x = 20000 + i * 400;
+			helper.runAfterDelay(1 + (long) i * PLACE_SPACING_TICKS, () -> {
+				String error = place(server, source, id, x, 64);
+				if (error != null && error.contains("not loaded")) error = place(server, source, id, x, 112);
+				if (error != null) failed.add(id + " (" + error + ")");
+			});
+		}
+		helper.runAfterDelay(2 + (long) ids.size() * PLACE_SPACING_TICKS, () -> {
+			helper.assertTrue(failed.isEmpty(), "structures failed to place: " + failed);
+			helper.succeed();
+		});
+	}
+
+	// /place needs every chunk the structure covers to be loaded
+	private static String place(MinecraftServer server, CommandSourceStack source, ResourceLocation id, int x, int radius) {
+		var dispatcher = server.getCommands().getDispatcher();
+		try {
+			dispatcher.execute(String.format("forceload add %d %d %d %d", x - radius, 20000 - radius, x + radius, 20000 + radius), source);
+			int result = dispatcher.execute(String.format("place structure %s %d 0 20000", id, x), source);
+			return result > 0 ? null : "result " + result;
+		} catch (Exception e) {
+			return e.getMessage();
+		} finally {
 			try {
-				// /place needs every chunk the structure covers to be loaded
-				server.getCommands().getDispatcher().execute(String.format("forceload add %d %d %d %d", x - 120, 20000 - 120, x + 120, 20000 + 120), source);
-				int result = server.getCommands().getDispatcher().execute(String.format("place structure %s %d 0 20000", id, x), source);
-				server.getCommands().getDispatcher().execute("forceload remove all", source);
-				if (result <= 0) failed.add(id + " (result " + result + ")");
-			} catch (Exception e) {
-				failed.add(id + " (" + e.getMessage() + ")");
+				dispatcher.execute("forceload remove all", source);
+			} catch (Exception ignored) {
 			}
 		}
-		helper.assertTrue(failed.isEmpty(), "structures failed to place: " + failed);
-		helper.succeed();
 	}
 
 	/** Every structure piece referenced by the mod loads. */
