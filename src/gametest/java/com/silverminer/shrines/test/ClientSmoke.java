@@ -26,6 +26,8 @@ public final class ClientSmoke {
 	private static State state = State.WAIT_TITLE;
 	private static int ticks;
 	private static int shot;
+	private static final java.util.concurrent.atomic.AtomicBoolean PLACED = new java.util.concurrent.atomic.AtomicBoolean();
+	private static net.minecraft.core.BlockPos land;
 
 	private ClientSmoke() {
 	}
@@ -62,8 +64,13 @@ public final class ClientSmoke {
 				}
 				case SHOOT -> {
 					ticks++;
-					if (ticks == 40) place(mc, SHOTS[shot], shot);
-					if (ticks == 240) {
+					if (ticks == 40) {
+						PLACED.set(false);
+						place(mc, SHOTS[shot], shot);
+					}
+					// the server places synchronously; give the client 8 s after that to receive and draw the chunks
+					if (ticks > 40 && !PLACED.get()) ticks = 41;
+					if (ticks == 200) {
 						Screenshot.grab(mc.gameDirectory, "shrines-" + SHOTS[shot] + ".png", mc.getMainRenderTarget(), msg -> {});
 						ticks = 0;
 						if (++shot == SHOTS.length) {
@@ -95,15 +102,20 @@ public final class ClientSmoke {
 	// place the structure 600 blocks apart each time, then look at it from the south-west, slightly above
 	private static void place(Minecraft mc, String id, int index) {
 		var server = mc.getSingleplayerServer();
-		int x = 2000 + index * 600;
-		int z = 2000;
 		server.execute(() -> {
 			var level = server.overworld();
+			if (land == null) {
+				// line the structures up in the nearest plains so they stand on land
+				var found = level.findClosestBiome3d(b -> b.is(net.minecraft.world.level.biome.Biomes.PLAINS), net.minecraft.core.BlockPos.ZERO, 6400, 32, 64);
+				land = found == null ? new net.minecraft.core.BlockPos(2000, 64, 2000) : found.getFirst();
+			}
+			int x = land.getX() + index * 160;
+			int z = land.getZ();
 			var source = server.createCommandSourceStack().withSuppressedOutput();
 			var commands = server.getCommands();
 			commands.performPrefixedCommand(source, "time set 1000");
 			commands.performPrefixedCommand(source, "weather clear");
-			commands.performPrefixedCommand(source, String.format("forceload add %d %d %d %d", x - 120, z - 120, x + 120, z + 120));
+			commands.performPrefixedCommand(source, String.format("forceload add %d %d %d %d", x - 64, z - 64, x + 64, z + 64));
 			int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
 			try {
 				int result = commands.getDispatcher().execute(String.format("place structure shrines:%s %d %d %d", id, x, y, z), source);
@@ -115,6 +127,7 @@ public final class ClientSmoke {
 			player.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);
 			player.teleportTo(level, x - 24.5, y + 16, z - 24.5, -45, 25);
 			System.out.println("[clientsmoke] placed " + id + " at " + x + " " + y + " " + z);
+			PLACED.set(true);
 		});
 		mc.options.hideGui = true;
 	}
