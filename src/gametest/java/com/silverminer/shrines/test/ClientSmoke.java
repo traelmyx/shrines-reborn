@@ -103,7 +103,6 @@ public final class ClientSmoke {
 			var commands = server.getCommands();
 			commands.performPrefixedCommand(source, "time set 1000");
 			commands.performPrefixedCommand(source, "weather clear");
-			commands.performPrefixedCommand(source, "gamemode spectator @a");
 			commands.performPrefixedCommand(source, String.format("forceload add %d %d %d %d", x - 120, z - 120, x + 120, z + 120));
 			int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
 			try {
@@ -112,7 +111,10 @@ public final class ClientSmoke {
 			} catch (Exception e) {
 				fail("could not place " + id + ": " + e.getMessage());
 			}
-			commands.performPrefixedCommand(source, String.format("tp @a %d %d %d -45 25", x - 24, y + 16, z - 24));
+			var player = server.getPlayerList().getPlayers().get(0);
+			player.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);
+			player.teleportTo(level, x - 24.5, y + 16, z - 24.5, -45, 25);
+			System.out.println("[clientsmoke] placed " + id + " at " + x + " " + y + " " + z);
 		});
 		mc.options.hideGui = true;
 	}
