@@ -38,7 +38,10 @@ public final class ShrinesTests {
 		for (ResourceLocation id : ids) {
 			int x = 20000 + (i++) * 400;
 			try {
+				// /place needs every chunk the structure covers to be loaded
+				server.getCommands().getDispatcher().execute(String.format("forceload add %d %d %d %d", x - 120, 20000 - 120, x + 120, 20000 + 120), source);
 				int result = server.getCommands().getDispatcher().execute(String.format("place structure %s %d 0 20000", id, x), source);
+				server.getCommands().getDispatcher().execute("forceload remove all", source);
 				if (result <= 0) failed.add(id + " (result " + result + ")");
 			} catch (Exception e) {
 				failed.add(id + " (" + e.getMessage() + ")");

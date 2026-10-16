@@ -104,7 +104,7 @@ public final class ClientSmoke {
 			commands.performPrefixedCommand(source, "time set 1000");
 			commands.performPrefixedCommand(source, "weather clear");
 			commands.performPrefixedCommand(source, "gamemode spectator @a");
-			commands.performPrefixedCommand(source, String.format("forceload add %d %d", x, z));
+			commands.performPrefixedCommand(source, String.format("forceload add %d %d %d %d", x - 120, z - 120, x + 120, z + 120));
 			int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
 			try {
 				int result = commands.getDispatcher().execute(String.format("place structure shrines:%s %d %d %d", id, x, y, z), source);
