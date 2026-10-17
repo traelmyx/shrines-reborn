@@ -4,7 +4,8 @@ apply plugin: obf ? 'net.fabricmc.fabric-loom-remap' : 'net.fabricmc.fabric-loom
 apply plugin: 'maven-publish'
 
 def javaVersion = (project.property('mc.java') as String).toInteger()
-def hasClientGameTestApi = stonecutter.eval(mc, '>=1.21.4')
+// this mod has no Fabric client game tests, only the plain smoke test (-Dsmoketest)
+def hasClientGameTestApi = false
 
 version = "${project.property('mod.version')}+${mc}-fabric"
 group = project.property('mod.group')
@@ -100,6 +101,11 @@ jar {
 
 def gametestJar = tasks.register('gametestJar', Jar) {
 	from sourceSets.gametest.output
+	if (mc == '1.21.11') {
+		// Fabric API's @GameTest cannot be read in an intermediary production run on 1.21.11 (AnnotationFormatError on
+		// rotation()); without the game test entrypoint the smoke client can still start a world
+		filesMatching('fabric.mod.json') { filter { line -> line.contains('fabric-gametest') ? null : line } }
+	}
 	archiveClassifier = obf ? 'gametest-dev' : 'gametest'
 }
 def gametestModJar = gametestJar

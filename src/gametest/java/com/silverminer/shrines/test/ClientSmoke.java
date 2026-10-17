@@ -1,16 +1,9 @@
 package com.silverminer.shrines.test;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.world.Difficulty;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.LevelSettings;
-import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 
 import java.nio.file.Files;
@@ -51,16 +44,16 @@ public final class ClientSmoke {
 		try {
 			switch (state) {
 				case WAIT_TITLE -> {
-					Screen screen = mc.screen;
-					if (screen != null && mc.getOverlay() == null && ++ticks >= 20) {
+					Screen screen = SmokeCompat.screen(mc);
+					if (screen != null && SmokeCompat.overlayHidden(mc) && ++ticks >= 20) {
 						if (screen.getClass().getSimpleName().equals("LoadingErrorScreen")) fail("mod loading errors or warnings, see the log");
 						ticks = 0;
-						createWorld(mc);
+						SmokeCompat.createWorld(mc, GameType.CREATIVE, WorldPresets.NORMAL, 1L, false);
 						state = State.WAIT_WORLD;
 					}
 				}
 				case WAIT_WORLD -> {
-					if (mc.level != null && mc.player != null && mc.screen == null) state = State.SHOOT;
+					if (mc.level != null && mc.player != null && SmokeCompat.screen(mc) == null) state = State.SHOOT;
 				}
 				case SHOOT -> {
 					ticks++;
@@ -71,10 +64,10 @@ public final class ClientSmoke {
 					// the server places synchronously; give the client 8 s after that to receive and draw the chunks
 					if (ticks > 40 && !PLACED.get()) ticks = 41;
 					if (ticks == 200) {
-						Screenshot.grab(mc.gameDirectory, "shrines-" + SHOTS[shot] + ".png", mc.getMainRenderTarget(), msg -> {});
+						SmokeCompat.screenshot(mc, "shrines-" + SHOTS[shot] + ".png");
 						ticks = 0;
 						if (++shot == SHOTS.length) {
-							mc.options.hideGui = false;
+							SmokeCompat.hideGui(mc, false);
 							Files.writeString(mc.gameDirectory.toPath().resolve("smoke-ok"), "ok\n");
 							System.out.println("[clientsmoke] PASSED");
 							state = State.DONE;
@@ -90,14 +83,6 @@ public final class ClientSmoke {
 		}
 	}
 
-	private static void createWorld(Minecraft mc) {
-		LevelSettings settings = new LevelSettings("smoke", GameType.CREATIVE, false, Difficulty.PEACEFUL,
-			true, new GameRules(), WorldDataConfiguration.DEFAULT);
-		mc.createWorldOpenFlows().createFreshLevel("smoke", settings, new WorldOptions(1L, false, false),
-			registries -> registries.registryOrThrow(Registries.WORLD_PRESET)
-				.getHolderOrThrow(WorldPresets.NORMAL).value().createWorldDimensions(),
-			mc.screen);
-	}
 
 	// place the structure 600 blocks apart each time, then look at it from the south-west, slightly above
 	private static void place(Minecraft mc, String id, int index) {
@@ -125,11 +110,15 @@ public final class ClientSmoke {
 			}
 			var player = server.getPlayerList().getPlayers().get(0);
 			player.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);
+			//? if >=1.21.11 {
+			/*player.teleportTo(level, x - 24.5, y + 16, z - 24.5, java.util.Set.of(), -45, 25, true);
+			*///?} else {
 			player.teleportTo(level, x - 24.5, y + 16, z - 24.5, -45, 25);
+			//?}
 			System.out.println("[clientsmoke] placed " + id + " at " + x + " " + y + " " + z);
 			PLACED.set(true);
 		});
-		mc.options.hideGui = true;
+		SmokeCompat.hideGui(mc, true);
 	}
 
 	public static void fail(String why) {

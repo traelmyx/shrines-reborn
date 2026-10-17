@@ -21,7 +21,7 @@ stonecutter {
 	kotlinController = false
 	
 	create(getRootProject()) {
-		['1.21.1'].each { mc ->
+		['1.21.1', '1.21.11', '26.2', '26.3'].each { mc ->
 			['fabric', 'neoforge'].each { loader ->
 				versions([("${mc}-${loader}".toString()): mc]).buildscript("build.${loader}.gradle".toString())
 			}
