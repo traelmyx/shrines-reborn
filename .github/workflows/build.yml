@@ -9,6 +9,7 @@ jobs:
   server:
     name: server ${{ matrix.node }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -43,6 +44,7 @@ jobs:
   client:
     name: client ${{ matrix.node }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
