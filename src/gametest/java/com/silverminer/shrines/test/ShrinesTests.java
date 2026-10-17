@@ -78,7 +78,8 @@ public final class ShrinesTests {
 			return e.getMessage();
 		} finally {
 			try {
-				dispatcher.execute("forceload remove all", source);
+				// only our own range: 26.x keeps the test areas loaded with forced chunks too
+				dispatcher.execute(String.format("forceload remove %d %d %d %d", x - radius, 20000 - radius, x + radius, 20000 + radius), source);
 			} catch (Exception ignored) {
 			}
 		}
