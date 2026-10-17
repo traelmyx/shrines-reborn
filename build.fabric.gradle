@@ -39,6 +39,9 @@ afterEvaluate {
 	}
 }
 
+// 26.3 loot tables name tag entries with "items": "#tag" instead of "name"
+sourceSets.main.resources.srcDir rootProject.file(stonecutter.eval(stonecutter.current.version, '>=26.3') ? 'src/main/resources-26.3' : 'src/main/resources-pre26.3')
+
 fabricApi {
 	configureTests {
 		createSourceSet = true
