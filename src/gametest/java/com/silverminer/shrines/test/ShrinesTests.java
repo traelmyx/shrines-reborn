@@ -50,7 +50,7 @@ public final class ShrinesTests {
 		List<String> ids = structures.keySet().stream()
 			.filter(id -> id.getNamespace().equals(NAMESPACE)).map(Object::toString).sorted().toList();
 		helper.assertTrue(ids.size() >= 30, "expected 30+ shrines structures, found " + ids.size());
-		CommandSourceStack source = server.createCommandSourceStack().withLevel(level).withSuppressedOutput().withPermission(4);
+		CommandSourceStack source = server.createCommandSourceStack().withLevel(level).withSuppressedOutput();
 		List<String> failed = new ArrayList<>();
 		for (int i = 0; i < ids.size(); i++) {
 			String id = ids.get(i);
@@ -87,6 +87,9 @@ public final class ShrinesTests {
 	/** Every structure piece referenced by the mod loads. */
 	public static void templatesLoad(GameTestHelper helper) {
 		ServerLevel level = helper.getLevel();
+		//? if >=26.3 {
+		/*var manager = level.getStructureTemplateManager();
+		*///?} else
 		var manager = level.getStructureManager();
 		var ids = manager.listTemplates().filter(id -> id.getNamespace().equals(NAMESPACE)).toList();
 		helper.assertTrue(ids.size() > 50, "too few shrines templates: " + ids.size());
